@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quản lý tiền thuê nhà</title>
+<link rel="preconnect" href="https://googleapis.com">
+<link rel="preconnect" href="https://gstatic.com" crossorigin>
+<link href="https://googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e9efed;--card:#fff;--ink:#17302b;--muted:#5f736e;--line:#d3dfdb;--accent:#0e6b5b;--accent-d:#0a5245;--amber:#f0b44c;--err:#b3382c}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Be Vietnam Pro",system-ui,-apple-system,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:20px 16px 40px}h1{font-size:1.6rem;margin:8px 0 4px;letter-spacing:-.01em}
+.sub{margin:0 0 20px;color:var(--muted)}.grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:860px){.grid{grid-template-columns:1.25fr 1fr;align-items:start}.receipt{position:sticky;top:16px}}
+.card{background:var(--card);border-radius:14px;padding:20px;border:1px solid var(--line)}
+fieldset{border:0;margin:0 0 20px;padding:0;min-width:0}legend{font-weight:700;margin-bottom:10px;padding:0}
+.row{display:grid;gap:12px;grid-template-columns:1fr 1fr}.full{grid-column:1/-1}
+label{display:block;font-size:.88rem;color:var(--muted);margin-bottom:4px}
+input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;color:var(--ink);background:#fff}
+.hint{font-size:.85rem;margin-top:4px;color:var(--accent);font-weight:500;min-height:1.3em}.hint.bad{color:var(--err)}
+.msg{color:var(--err);font-size:.92rem;min-height:1.4em;margin:0 0 8px}.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{font:inherit;font-weight:700;border-radius:10px;padding:12px 18px;cursor:pointer;border:2px solid var(--accent);flex:1 1 150px}
+.primary{background:var(--accent);color:#fff}.primary:hover:not(:disabled){background:var(--accent-d)}
+.ghost{background:#fff;color:var(--accent)}.ghost:hover:not(:disabled){background:#eef6f4}button:disabled{opacity:.65;cursor:wait}
+.receipt{background:#15302a;color:#e8f2ef;border-color:#15302a}.receipt h2{margin:0 0 12px;font-size:1.05rem}
+.empty{color:#9fb8b1;margin:0}.line{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px dashed #3b5a52}
+.line small{display:block;color:#9fb8b1}.line b{white-space:nowrap;font-variant-numeric:tabular-nums}
+.total{margin-top:14px}.total span{color:#9fb8b1;font-size:.9rem}
+.total strong{display:block;font-size:2.2rem;line-height:1.2;color:var(--amber);font-variant-numeric:tabular-nums;word-break:break-word}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Quản lý tiền thuê nhà</h1>
+  <p class="sub">Nhập chỉ số điện nước, tính tiền và lưu hóa đơn vào Google Sheets.</p>
+  <div class="grid">
+    <form class="card" id="form" autocomplete="off" novalidate>
+      <fieldset>
+        <legend>Thông tin phòng</legend>
+        <div class="row">
+          <div><label for="phong">Tên phòng</label><input id="phong" placeholder="Ví dụ: P101"></div>
+          <div><label for="nguoi">Tên người thuê</label><input id="nguoi" placeholder="Ví dụ: Nguyễn Văn A"></div>
+          <div class="full"><label for="thang">Tháng tính tiền (MM/YYYY)</label><input id="thang" placeholder="10/2026" inputmode="numeric" maxlength="7"></div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Điện</legend>
+        <div class="row">
+          <div><label for="dien_cu">Số điện cũ</label><input id="dien_cu" type="number" min="0"></div>
+          <div><label for="dien_moi">Số điện mới</label><input id="dien_moi" type="number" min="0"></div>
+        </div>
+        <div class="hint" id="dien_hint"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Nước</legend>
+        <div class="row">
+          <div><label for="nuoc_cu">Số nước cũ</label><input id="nuoc_cu" type="number" min="0"></div>
+          <div><label for="nuoc_moi">Số nước mới</label><input id="nuoc_moi" type="number" min="0"></div>
+        </div>
+        <div class="hint" id="nuoc_hint"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Đơn giá và các khoản khác</legend>
+        <div class="row">
+          <div><label for="gia_dien">Giá điện (đ/kWh)</label><input id="gia_dien" type="number" value="3500"></div>
+          <div><label for="gia_nuoc">Giá nước (đ/khối)</label><input id="gia_nuoc" type="number" value="15000"></div>
+          <div><label for="tien_phong">Tiền phòng cố định (đ)</label><input id="tien_phong" type="number"></div>
+          <div><label for="dich_vu">Tiền dịch vụ khác (đ)</label><input id="dich_vu" type="number" value="0"></div>
+        </div>
+      </fieldset>
+      <p class="msg" id="msg" role="alert"></p>
+      <div class="actions">
+        <button type="button" class="ghost" id="calc">Tính tổng tiền</button>
+        <button type="button" class="primary" id="save">Lưu hóa đơn</button>
+      </div>
+    </form>
+    <aside class="card receipt" aria-live="polite">
+      <h2>Hóa đơn</h2>
+      <div id="receipt"><p class="empty">Nhập thông tin rồi bấm "Tính tổng tiền" để xem chi tiết.</p></div>
+    </aside>
+  </div>
+</div>
+<script>
+// ĐỒNG BỘ: DÁN ĐƯỜNG LINK WEB APP URL CỦA BẠN VÀO GIỮA HAI DẤU NGOẶC KÉP Ở DƯỚI
+const WEB_APP_URL = " https://script.google.com/macros/s/AKfycbwFTNRlkgukODlP2JNK1fGOhJ0jJrJCRX0WsAR7NhWBSbpjRq5rIv5ur4p8SqedCtVCKw/exec ";
+
+const \$ = id => document.getElementById(id);
+const num = id => parseFloat(\$(id).value) || 0;
+const money = n => new Intl.NumberFormat("vi-VN").format(Math.round(n)) + "đ";
+const qty = n => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(n);
+const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "'" }[c]));
+
+(function () {
+  const d = new Date();
+  \$("thang").value = String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
+})();
+
+function updateUsage() {
+  [["dien", "kWh"], ["nuoc", "khối"]].forEach(([k, unit]) => {
+    const hint = \$(k + "_hint");
+    if (\((k + "_cu").value === "" \vert{}\vert{} \)(k + "_moi").value === "") { hint.textContent = ""; return; }
+    const u = num(k + "_moi") - num(k + "_cu");
+    if (u < 0) { hint.textContent = "Số mới phải lớn hơn hoặc bằng số cũ"; hint.className = "hint bad"; }
+    else { hint.textContent = "Tiêu thụ: " + qty(u) + " " + unit; hint.className = "hint"; }
+  });
+}
+["dien_cu", "dien_moi", "nuoc_cu", "nuoc_moi"].forEach(id => \$(id).addEventListener("input", updateUsage));
+
+function compute() {
+  const msg = \$("msg"); msg.textContent = "";
+  const fail = t => { msg.textContent = t; return null; };
+  const phong = \$("phong").value.trim();
+  const thang = \$("thang").value.trim();
+  if (!phong) return fail("Hãy nhập tên phòng.");
+  if (!/^(0?[1-9]|1[0-2])\/\d{4}\$/.test(thang)) return fail("Tháng sai định dạng MM/YYYY.");
+  if (["dien_cu", "dien_moi", "nuoc_cu", "nuoc_moi"].some(id => \$(id).value === "")) return fail("Hãy nhập đủ số điện và nước.");
+
+  const soDien = num("dien_moi") - num("dien_cu");
+  const soNuoc = num("nuoc_moi") - num("nuoc_cu");
+  if (soDien < 0 || soNuoc < 0) return fail("Số mới phải lớn hơn số cũ.");
+
+  const tienDien = soDien * num("gia_dien");
+  const tienNuoc = soNuoc * num("gia_nuoc");
+  const tienPhong = num("tien_phong");
+  const dichVu = num("dich_vu");
+  const tongTien = tienDien + tienNuoc + tienPhong + dichVu;
+
+  return {
+    tenPhong: phong + " - " + \$("nguoi").value.trim(), thang, dienCu: num("dien_cu"), dienMoi: num("dien_moi"),
+    nuocCu: num("nuoc_cu"), nuocMoi: num("nuoc_moi"), tienPhong, tongTien,
+    html: `
+      <div class="line"><span>Phòng</span><b>${esc(phong)} ${$("nguoi").value ? `(\({esc(\)("nguoi").value)})` : ''}</b></div>
+      <div class="line"><span>Tháng</span><b>${esc(thang)}</b></div>
+      <div class="line"><span>Tiền phòng</span><b>${money(tienPhong)}</b></div>
+      <div class="line"><span>Tiền điện <small>${qty(soDien)} kWh</small></span><b>${money(tienDien)}</b></div>
+      <div class="line"><span>Tiền nước <small>${qty(soNuoc)} khối</small></span><b>${money(tienNuoc)}</b></div>
+      ${dichVu > 0 ? `<div class="line"><span>Dịch vụ</span><b>\${money(dichVu)}</b></div>` : ''}
+      <div class="total"><span>Tổng cộng</span><strong>${money(tongTien)}</strong></div>
+    `
+  };
+}
+
+\$("calc").addEventListener("click", () => {
+  const res = compute();
+  if (res) \$("receipt").innerHTML = res.html;
+});
+
+\$("save").addEventListener("click", async () => {
+  const res = compute();
+  if (!res) return;
+  const btn = \$("save");
+  btn.disabled = true;
+  btn.textContent = "Đang lưu...";
+
+  const payload = {
+    ngayLuu: new Date().toLocaleString("vi-VN"),
+    tenPhong: res.tenPhong,
+    thang: res.thang,
+    dienCu: res.dienCu,
+    dienMoi: res.dienMoi,
+    nuocCu: res.nuocCu,
+    nuocMoi: res.nuocMoi,
+    tienPhong: res.tienPhong,
+    tongTien: res.tongTien
+  };
+
+  try {
+    const response = await fetch(WEB_APP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    alert("🎉 Đã gửi lệnh lưu! Hãy kiểm tra Google Sheets.");
+  } catch (err) {
+    alert("Lỗi kết nối mạng!");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Lưu hóa đơn";
+  }
+});
+</script>
+</body>
+</html>
